@@ -1,0 +1,74 @@
+﻿@inject IJSRuntime jsRuntime;
+
+<div id="mapDiv" class="map"></div>
+
+@code {
+    [Parameter]
+    public IEnumerable<AssetDTO> Assets { get; set; }
+    private IJSObjectReference _jsMarkers { get; set; }
+
+
+
+    protected override async Task OnAfterRenderAsync(bool firstTime)
+    {
+        double averageLatitude = 0;
+        double averageLongitude = 0;
+        int zoomLevel = CalculateZoomLevel(Assets);
+        if (Assets.Count() != 0)
+        {
+            averageLatitude = Assets.Select(a => a.Latitude).Average();
+            averageLongitude = Assets.Select(a => a.Longitude).Average();
+        }
+
+        if (_jsMarkers is null)
+        {
+            _jsMarkers = await jsRuntime.InvokeAsync<IJSObjectReference>(
+            "InitializeMap", new object[] { Assets, averageLatitude, averageLongitude, zoomLevel });
+            return;
+        }
+
+        else
+        {
+            await jsRuntime.InvokeVoidAsync("UpdateMap", new object[] {_jsMarkers, Assets});
+            return;
+        }
+
+
+    }
+
+    private int CalculateZoomLevel(IEnumerable<AssetDTO> assets)
+    {
+        if (assets.Count() == 0)
+        {
+            return 2;
+        }
+        if (assets.Count() == 1)
+        {
+            return 15;
+        }
+
+        double maxLatitudeDifference = assets.Select(a => a.Latitude).Max() - assets.Select(a => a.Latitude).Min();
+        double maxLongitudeDifference = assets.Select(a => a.Longitude).Max() - assets.Select(a => a.Longitude).Min();
+        double distance = Math.Pow((Math.Pow(maxLatitudeDifference, 2) + Math.Pow(maxLongitudeDifference, 2)), 0.5);
+
+        switch (distance)
+        {
+            case < 0.1:
+                return 13;
+            case < 0.5:
+                return 11;
+            case < 1:
+                return 8;
+            case < 10:
+                return 5;
+            case < 20:
+                return 4;
+            case < 40:
+                return 3;
+            default:
+                return 2;
+        }
+    }
+
+
+}

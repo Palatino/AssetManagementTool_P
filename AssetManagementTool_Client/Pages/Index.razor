@@ -1,0 +1,32 @@
+﻿@page "/About"
+@layout MainLayout
+
+<MudContainer>
+    <MudText Typo="Typo.h6">
+        This application was developed by <MudLink Href="https://www.linkedin.com/in/palvarezrio" Typo="Typo.h6">Pablo Alvarez</MudLink>
+        as a basic proof of concept of a web based asset management tool. Using only open source tools clients can be provided with a solution 
+        to help them manage a collection of assets and updating information without the need of special knowledge of tools.
+    </MudText>
+    <br />
+    <MudText Typo="Typo.h6">The stack used to create this application is:</MudText>
+    <br />
+    <MudText Typo="Typo.h4">Sever Side:</MudText>
+    <MudList>
+        <MudListItem Icon="@Icons.Filled.Circle" IconSize="Size.Small"><MudText Typo="Typo.h6">ASP.NET Core 6</MudText></MudListItem>
+        <MudListItem Icon="@Icons.Filled.Circle" IconSize="Size.Small"><MudText Typo="Typo.h6">SQL Server</MudText></MudListItem>
+        <MudListItem Icon="@Icons.Filled.Circle" IconSize="Size.Small"><MudText Typo="Typo.h6">EF Core 6</MudText></MudListItem>
+        <MudListItem Icon="@Icons.Filled.Circle" IconSize="Size.Small"><MudText Typo="Typo.h6">Azure Blob Storage</MudText></MudListItem>
+    </MudList>
+
+    <MudText Typo="Typo.h4">Client side:</MudText>
+    <MudList>
+        <MudListItem Icon="@Icons.Filled.Circle" IconSize="Size.Small"><MudText Typo="Typo.h6">Blazor Web Assembly</MudText> </MudListItem>
+        <MudListItem Icon="@Icons.Filled.Circle" IconSize="Size.Small"><MudText Typo="Typo.h6">Mudblazor</MudText></MudListItem>
+        <MudListItem Icon="@Icons.Filled.Circle" IconSize="Size.Small">
+            <MudLink Href="https://threejs.org/"><MudText Typo="Typo.h6">Three.js</MudText></MudLink>
+        </MudListItem>
+        <MudListItem Icon="@Icons.Filled.Circle" IconSize="Size.Small">
+            <MudLink Href="https://ifcjs.github.io/info/"><MudText Typo="Typo.h6">IFC.js</MudText></MudLink>
+        </MudListItem>
+    </MudList>
+</MudContainer>

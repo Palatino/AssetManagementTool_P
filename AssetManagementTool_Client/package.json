@@ -1,0 +1,21 @@
+{
+  "name": "AssetManagementTool_Client",
+  "version": "1.0.0",
+  "description": "",
+  "main": "webpack.config.js",
+  "dependencies": {
+    "@types/three": "^0.131.0",
+    "three": "^0.132.2"
+  },
+  "devDependencies": {
+    "webpack": "^5.51.1",
+    "webpack-cli": "^4.8.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "wbp": "webpack"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

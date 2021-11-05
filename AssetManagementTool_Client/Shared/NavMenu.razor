@@ -1,0 +1,9 @@
+﻿<MudNavMenu>
+
+    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.TwoTone.LocationOn">Assets</MudNavLink>
+    <AuthorizeView Roles="@Authorization.Roles.Admin">
+        <MudNavLink Href="/addAsset" Match="NavLinkMatch.All" Icon="@Icons.Material.TwoTone.AddCircle">Add Asset</MudNavLink>
+    </AuthorizeView>
+    <MudNavLink Href="/about" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Help">About</MudNavLink>
+
+</MudNavMenu>

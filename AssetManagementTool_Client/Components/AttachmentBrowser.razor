@@ -1,0 +1,73 @@
+﻿
+
+<MudContainer Class="my-2 mx-2" Style="width:100%;" MaxWidth="MaxWidth.False">
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6" 
+             Outlined="true" AlwaysShowScrollButtons="false"  Color="Color.Primary" Position="Position.Top" Style="width: 100%; min-height:500px;">
+        <MudTabPanel Icon="@Icons.Material.Filled.Image"  BadgeData="@_selectedElementNumberOfImages" BadgeColor="Color.Secondary" Text="Images" Style="color:#424242ff">
+            <ImagesBrowser @ref="_imageBrowser" Asset="Asset" IsAdmin="_isAdmin" InitialSelection="@_selectedElementId"></ImagesBrowser>
+        </MudTabPanel>
+        <MudTabPanel Icon="@Icons.Custom.FileFormats.FileDocument" BadgeData="@_selectedElementNumberOfFiles" BadgeColor="Color.Secondary" Text="Files"  Style="color:#424242ff">
+            <FilesBrowser @ref="_filesBrowser" Asset="Asset" IsAdmin="_isAdmin" InitialSelection="@_selectedElementId"></FilesBrowser>
+        </MudTabPanel>
+        <MudTabPanel Icon="@Icons.Material.Filled.Comment" Text="Comments"  BadgeData="@_selectedElementNumberOfComments" BadgeColor="Color.Secondary"  Style="color:#424242ff" >
+            <CommentsBrowser @ref="_commentBrowser" Asset="Asset" IsAdmin="_isAdmin" InitialSelection="@_selectedElementId" />
+        </MudTabPanel>
+    </MudTabs>
+</MudContainer>
+
+
+
+@code {
+    [Parameter]
+    public AssetDTO Asset { get; set; }
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+
+    private bool _isAdmin;
+
+    private CommentsBrowser _commentBrowser;
+    private ImagesBrowser _imageBrowser;
+    private FilesBrowser _filesBrowser;
+
+    private string _selectedElementId { get; set; } = "";
+    private int? _selectedElementNumberOfImages = 0;
+    private int? _selectedElementNumberOfFiles = 0;
+    private int? _selectedElementNumberOfComments = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await authenticationStateTask;
+        _isAdmin = authState.User.IsInRole(Authorization.Roles.Admin);
+        UpdateBadgesNumbers();
+    }
+    public void SetSelectionId(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            _selectedElementId = "";
+        }
+        else
+        {
+            _selectedElementId = id;
+        }
+        UpdateBadgesNumbers();
+        _imageBrowser.SetSelectedElementId(_selectedElementId);
+        _commentBrowser.SetSelectedElementId(_selectedElementId);
+        _filesBrowser.SetSelectedElementId(_selectedElementId);
+
+        StateHasChanged();
+    }
+    private void UpdateBadgesNumbers()
+    {
+        var fileCount = Asset.Files.Where(f => f.ElementOwner == _selectedElementId).Count();
+        _selectedElementNumberOfFiles = fileCount == 0 ? null : fileCount;
+
+        var imagesCount = Asset.Images.Where(i => i.ElementOwner == _selectedElementId).Count();
+        _selectedElementNumberOfImages = imagesCount == 0 ? null : imagesCount;
+
+        var commentCount = Asset.Comments.Where(c => c.ElementOwner == _selectedElementId).Count();
+        _selectedElementNumberOfComments = commentCount == 0 ? null : commentCount;
+    }
+
+}

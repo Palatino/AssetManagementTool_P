@@ -1,0 +1,199 @@
+﻿@inject IAssetAttachmentService attachmentService;
+@inject ISnackbar Snackbar
+@inject NavigationManager navigationManager;
+@using System.IO
+
+<MudGrid>
+    <MudItem xs="12">
+        <MudSimpleTable Dense="true" Striped="true" Hover="true" FixedHeader="true" Style="height:300px">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Description</th>
+                    <th>Date Added</th>
+                    <th>Added by</th>
+                    @if (IsAdmin)
+                    {
+                        <th>Delete</th>
+                    }
+
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var file in filteredFiles)
+                {
+                    <tr>
+                        <td><MudButton OnClick="()=>GetFile(file.Id)">@file.Name</MudButton></td>
+                        <td>@file.FileType</td>
+                        <td>@file.Description</td>
+                        <td>@file.DateAdded.ToString("d")</td>
+                        <td>@file.AddedBy</td>
+                        @if (IsAdmin)
+                        {
+                            <td><MudButton Color="Color.Error" OnClick="()=>DeleteFile(file.Id)">Delete</MudButton></td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </MudSimpleTable>
+    </MudItem>
+    @if (IsAdmin)
+    {
+        <MudItem xs="12">
+            <EditForm Model="_newFile" OnValidSubmit="SubmitNewFile">
+                <MudGrid>
+                    <MudItem xs="3">
+                        <InputFile id="fileInput" OnChange="HandleFileUpload" hidden></InputFile>
+                        <div class="d-flex justify-center">
+                            <MudFab HtmlTag="label" Class="mt-2"
+                                    Disabled="_uploadingFile"
+                                    IconColor="Color.Dark"
+                                    Color="Color.Primary"
+                                    Icon=@(_uploadingFile?"fas fa-spinner fa-spin": Icons.Filled.Image)
+                                    Label=@(_uploadingFile?"Uploading File":"Select file")
+                                    for="fileInput"
+                                    Style="width:50%; color:var(--mud-palette-dark)"></MudFab>
+
+                        </div>
+                        <MudText Typo="Typo.subtitle1" Align="Align.Center">@_selectionText</MudText>
+                    </MudItem>
+                    <MudItem xs="2">
+                        <MudTextField Label="Name" @bind-Value="_newFile.Name" Immediate="true" FullWidth="true" OnKeyUp="CheckFormIsValid" />
+                    </MudItem>
+                    <MudItem xs="3">
+                        <MudTextField Label="Description" @bind-Value="_newFile.Description" Immediate="true" FullWidth="true" OnKeyUp="CheckFormIsValid" />
+                    </MudItem>
+                    <MudItem xs="2">
+                        <MudSelect Label="Type" @bind-Value="_newFile.FileType" Immediate="true" Dense="true" FullWidth="true" OnKeyUp="CheckFormIsValid">
+                            @foreach (var type in Enum.GetValues(typeof(FileType)))
+                                {
+                                <MudSelectItem Value="@((FileType)type)">@type</MudSelectItem>
+                                }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="2">
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="@((!_formValid || _savingFile))" Size="Size.Large" Class="mt-6" Style="color: #424242ff">Save file</MudButton>
+                    </MudItem>
+                </MudGrid>
+            </EditForm>
+        </MudItem>
+    }
+
+</MudGrid>
+
+
+
+@code{
+
+    [Parameter]
+    public AssetDTO Asset { get; set; }
+    [Parameter]
+    public string InitialSelection { get; set; }
+    [Parameter]
+    public bool IsAdmin { get; set; }
+    public List<FileAttachmentDTO> filesList;
+    private List<FileAttachmentDTO> filteredFiles;
+    private string _selectedElementId { get; set; } = "";
+    private string _selectionText = "Nothing selected";
+
+
+    private NewFileAttachmentDTO _newFile { get; set; } = new NewFileAttachmentDTO();
+    private bool _uploadingFile = false;
+    private bool _savingFile = false;
+    private bool _formValid = false;
+    private int _maxSize = 10000000;
+
+    protected override void OnInitialized()
+    {
+        _selectedElementId = InitialSelection;
+        Asset.Files = Asset.Files.ToList();
+        filesList = Asset.Files as List<FileAttachmentDTO>;
+        FilterFiles();
+    }
+
+    public void SetSelectedElementId(string selectedElementId)
+    {
+        _selectedElementId = selectedElementId;
+        FilterFiles();
+    }
+
+    private async Task HandleFileUpload(InputFileChangeEventArgs e)
+    {
+        _uploadingFile = true;
+        FileInfo fileInfo = new FileInfo(e.File.Name);
+
+        if (e.File.Size > _maxSize)
+        {
+            Snackbar.Add($"File size exceeds limit of {_maxSize / 1000000}MB");
+            _newFile.FileByteArray = null;
+            _uploadingFile = false;
+            _selectionText = "Nothing selected";
+            CheckFormIsValid();
+            return;
+        }
+        MemoryStream ms = new MemoryStream();
+        await e.File.OpenReadStream(maxAllowedSize: _maxSize).CopyToAsync(ms);
+        _newFile.FileByteArray = ms.ToArray();
+        _newFile.FileExtension = fileInfo.Extension.ToLower();
+        _selectionText = e.File.Name;
+        if (_selectionText.Count() > 45)
+        {
+            _selectionText = "..." + _selectionText.Substring(_selectionText.Count() - 45);
+        }
+        _uploadingFile = false;
+        CheckFormIsValid();
+    }
+
+    private async Task SubmitNewFile()
+    {
+        _savingFile = true;
+        _newFile.AssetId = Asset.Id;
+        _newFile.ElementOwner = _selectedElementId;
+        try
+        {
+            var addedComment = await attachmentService.CreateFileAttachment(_newFile);
+            filesList.Add(addedComment);
+            FilterFiles();
+            Snackbar.Add("File added successfully", Severity.Success);
+            _newFile = new NewFileAttachmentDTO();
+
+        }
+        catch
+        {
+            Snackbar.Add("Couldn't save new file", Severity.Error);
+        }
+
+        _savingFile = false;
+
+    }
+    private async Task DeleteFile(int id)
+    {
+        var deleted = await attachmentService.DeleteFileAttachment(id);
+        if (!deleted)
+        {
+            Snackbar.Add("Error deleting file", Severity.Error);
+            return;
+        }
+        Snackbar.Add("File deleted succesfulle", Severity.Success);
+        filesList.Remove(filesList.Single(c => c.Id == id));
+        FilterFiles();
+    }
+    private async Task GetFile(int id)
+    {
+        var link = await attachmentService.GetFile(id);
+        navigationManager.NavigateTo(link);
+    }
+
+    private void FilterFiles()
+    {
+        filteredFiles = Asset.Files.Where(c => c.ElementOwner == _selectedElementId).ToList();
+    }
+    private void CheckFormIsValid()
+    {
+        _formValid = (
+            !string.IsNullOrWhiteSpace(_newFile.Name)
+            && (_newFile.FileByteArray is not null && _newFile.FileByteArray.Length > 0)
+            );
+    }
+}

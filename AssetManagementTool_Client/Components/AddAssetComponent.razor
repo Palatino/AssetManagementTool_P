@@ -1,0 +1,136 @@
+﻿@inject ISnackbar Snackbar
+@inject IAssetService assetService;
+@inject NavigationManager navMananager;
+@using System.IO
+
+<EditForm Model="_newAssetDTO" OnValidSubmit="SubmitForm">
+    <MudGrid Class="d-flex justify-center">
+        <MudItem xs="12" sm="8">
+            <MudCard Class="mt-6 boxShadow">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Class="d-flex justify-center py-2 px-1 mt-1" Typo="Typo.h5">Upload a new asset!</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent Class="d-flex flex-column justify-center py-2 px-1 mt-1 ">
+                    <InputFile id="fileInput" OnChange="HandleFileUpload" multiple accept=".ifc" hidden></InputFile>
+                    <MudText Typo="Typo.h6" Align="Align.Center">@_ifcFileName</MudText>
+                    <div class="d-flex justify-center">
+                        <MudFab HtmlTag="label" Class="mt-2"
+                                Disabled="_uploadingFile"
+                                IconColor="Color.Dark"
+                                Color="Color.Primary"
+                                Icon=@(_uploadingFile?"fas fa-spinner fa-spin": Icons.Filled.Image)
+                                Label=@(_uploadingFile?"Uploading File":"Select IFC file")
+                                for="fileInput"
+                                Style="width:50%; color:var(--mud-palette-dark)"></MudFab>
+
+                    </div>
+                    <MudTextField Label="Name" @bind-Value="_newAssetDTO.Name" For="@(() => _newAssetDTO.Name)" Immediate="true"
+                                  FullWidth="true" OnKeyUp="CheckFormIsValid" />
+                    <MudNumericField Label="Latitude" @bind-Value="_newAssetDTO.Latitude" For="@(()=>_newAssetDTO.Latitude)"
+                                     Immediate="true" FullWidth="true" HideSpinButtons="true" OnKeyUp="CheckFormIsValid" />
+                    <MudNumericField Label="Longitude" @bind-Value="_newAssetDTO.Longitude" For="@(()=>_newAssetDTO.Longitude)"
+                                     Immediate="true" FullWidth="true" HideSpinButtons="true " OnKeyUp="CheckFormIsValid" />
+                </MudCardContent>
+                <MudCardActions>
+                    <MudButton StartIcon="@(_savingAsset?"fas fa-spinner fa-spin":"")" ButtonType="ButtonType.Submit" Variant="Variant.Filled"
+                               Color="Color.Primary" Disabled="@((!_formValid || _savingAsset))" Size="Size.Large"
+                               Class="mt-6" Style="width: 100%; color: #424242ff ">@(_savingAsset ? "Saving asset" : "Save Asset")</MudButton>
+                </MudCardActions>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+
+
+</EditForm>
+
+
+@code {
+
+    private int _maxSize = 100000000;
+    private NewAssetDTO _newAssetDTO = new NewAssetDTO();
+    private bool _uploadingFile = false;
+    private bool _savingAsset = false;
+    private bool _formValid = false;
+    private string _ifcFileName = "";
+
+    private async Task HandleFileUpload(InputFileChangeEventArgs e)
+    {
+        _uploadingFile = true;
+        FileInfo fileInfo = new FileInfo(e.File.Name);
+
+        if (fileInfo.Extension.ToLower() != ".ifc")
+        {
+            Snackbar.Add("File not supported");
+            _ifcFileName = "";
+            _newAssetDTO.IFCFile = null;
+            return;
+        }
+        if (e.File.Size > _maxSize)
+        {
+            Snackbar.Add($"File size exceeds limit of {_maxSize / 1000000}MB");
+            _newAssetDTO.IFCFile = null;
+            _ifcFileName = "";
+            _uploadingFile = false;
+            return;
+        }
+        MemoryStream ms = new MemoryStream();
+        await e.File.OpenReadStream(maxAllowedSize: _maxSize).CopyToAsync(ms);
+        _newAssetDTO.IFCFile = ms.ToArray();
+        _ifcFileName = e.File.Name;
+        _uploadingFile = false;
+        CheckFormIsValid();
+    }
+
+    private async Task SubmitForm(EditContext e)
+    {
+        _savingAsset = true;
+        var usedNames = await assetService.GetAssetNames();
+        usedNames = usedNames.Select(n => n.ToLower());
+        if (usedNames.Contains(_newAssetDTO.Name.ToLower()))
+        {
+            Snackbar.Add("Name already exists in DB", severity: Severity.Error);
+            _savingAsset = false;
+            return;
+        }
+
+        AssetDTO createdAsset = await assetService.CreateAsset(_newAssetDTO);
+        if (createdAsset.Id != 0)
+        {
+            Snackbar.Add("Asset created succesfully", severity: Severity.Success);
+            _savingAsset = false;
+            EmptyForm();
+            navMananager.NavigateTo("/");
+            return;
+        }
+
+        Snackbar.Add("Problem saving new asset", severity: Severity.Error);
+        _savingAsset = false;
+        return;
+
+    }
+
+    private void EmptyForm()
+    {
+        _newAssetDTO = new NewAssetDTO();
+        _ifcFileName = "";
+        CheckFormIsValid();
+    }
+
+    private void CheckFormIsValid()
+    {
+        _formValid = (_newAssetDTO.Latitude != 0
+                && _newAssetDTO.Latitude <= 90
+                && _newAssetDTO.Latitude >= -90
+                && _newAssetDTO.Longitude != 0
+                && _newAssetDTO.Longitude <= 180
+                && _newAssetDTO.Longitude >= -180
+                && !string.IsNullOrWhiteSpace(_newAssetDTO.Name)
+                && (_newAssetDTO.IFCFile is not null && _newAssetDTO.IFCFile.Length > 0)
+                );
+    }
+
+
+
+}

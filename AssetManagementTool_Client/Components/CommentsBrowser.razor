@@ -1,0 +1,122 @@
+﻿@inject IAssetAttachmentService attachmentService;
+@inject ISnackbar Snackbar
+<MudGrid>
+    <MudItem xs="12">
+        <MudSimpleTable Dense="true" Striped="true" Hover="true" FixedHeader="true" Style="height:300px">
+            <thead>
+                <tr>
+                    <th>Comment</th>
+                    <th>Date</th>
+                    <th>Author</th>
+                    @if (IsAdmin)
+                    {
+                        <th>Delete</th>
+                    }
+
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var comment in filteredComments)
+                {
+                    <tr>
+                        <td>@comment.Content</td>
+                        <td>@comment.DateAdded</td>
+                        <td>@comment.AddedBy</td>
+                        @if (IsAdmin)
+                        {
+                            <td><MudButton Color="Color.Error" OnClick="()=>DeleteComment(comment.Id)">Delete</MudButton></td>
+                        }
+
+                    </tr>
+                }
+            </tbody>
+        </MudSimpleTable>
+    </MudItem>
+    @if (IsAdmin)
+    {
+        <MudItem xs="12">
+            <EditForm Model="newComment" OnValidSubmit="SubmitNewComment">
+                <MudGrid>
+                    <MudItem xs="10">
+                        <MudTextField Label="Comment" @bind-Value="newComment.Content" Immediate="true" FullWidth="true" />
+                    </MudItem>
+                    <MudItem xs="2">
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!((newComment.Content is not null)&& newComment.Content.Trim().Length>0))" Size="Size.Large" Class="mt-6" Style="color: #424242ff ">Add comment</MudButton>
+                    </MudItem>
+                </MudGrid>
+            </EditForm>
+        </MudItem>
+    }
+
+</MudGrid>
+
+
+
+@code{
+
+    [Parameter]
+    public AssetDTO Asset { get; set; }
+    [Parameter]
+    public string InitialSelection { get; set; }
+    [Parameter]
+    public bool IsAdmin { get; set; }
+    public List<CommentAttachmentDTO> commentsList;
+
+    private List<CommentAttachmentDTO> filteredComments;
+    private string _selectedElementId { get; set; } = "";
+
+    protected override void OnInitialized()
+    {
+        _selectedElementId = InitialSelection;
+        Asset.Comments = Asset.Comments.ToList();
+        commentsList = Asset.Comments as List<CommentAttachmentDTO>;
+        FilterComments();
+    }
+
+    public void SetSelectedElementId(string selectedElementId)
+    {
+        _selectedElementId = selectedElementId;
+        FilterComments();
+    }
+
+
+    private NewCommentAttachmentDTO newComment { get; set; } = new NewCommentAttachmentDTO();
+    private async Task SubmitNewComment()
+    {
+        newComment.AssetId = Asset.Id;
+        newComment.ElementOwner = _selectedElementId;
+        try
+        {
+            var addedComment = await attachmentService.CreateCommentAttachment(newComment);
+            commentsList.Add(addedComment);
+            FilterComments();
+            newComment.Content = "";
+            Snackbar.Add("Comment added successfully", Severity.Success);
+
+
+        }
+        catch
+        {
+            Snackbar.Add("Couldn't save new comment", Severity.Error);
+        }
+
+    }
+    private async Task DeleteComment(int id)
+    {
+        var deleted = await attachmentService.DeleteCommentAttachment(id);
+        if (!deleted)
+        {
+            Snackbar.Add("Error deleteing comment", Severity.Error);
+            return;
+        }
+        Snackbar.Add("Comment deleted succesfulle", Severity.Success);
+        commentsList.Remove(commentsList.Single(c => c.Id == id));
+        FilterComments();
+    }
+    private void FilterComments()
+    {
+        filteredComments = commentsList.Where(c => c.ElementOwner == _selectedElementId)
+            .OrderByDescending(c=>c.DateAdded)
+            .ToList();
+    }
+}

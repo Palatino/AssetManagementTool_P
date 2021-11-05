@@ -1,0 +1,12 @@
+﻿
+@page "/logIn"
+@layout EmptyLayout
+@inject NavigationManager navManager
+
+@code {      
+
+    protected override void OnInitialized()
+    {
+        navManager.NavigateTo("authentication/login");
+        }
+}

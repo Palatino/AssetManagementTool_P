@@ -1,0 +1,51 @@
+﻿@page "/"
+@layout MainLayout
+@inject IAssetService assetService
+@attribute [Authorize]
+
+<MudText Typo="Typo.h4" Align="Align.Center">Assets</MudText>
+@if (AllAssets is null)
+{
+    <LoadingComponent />
+}
+else
+{
+    <MudContainer MaxWidth="MaxWidth.ExtraLarge">
+        <MudContainer Class="mt-5" Style="width:100%; height:400px">
+            <AssetsMap Assets="AllAssets"></AssetsMap>
+        </MudContainer>
+        <MudContainer Class="mt-5" Style="width:100%">
+            <AssetsTable Assets="AllAssets" OnAssetDeletion="DeleteAsset"></AssetsTable>
+        </MudContainer>
+    </MudContainer>
+}
+
+
+@code {
+
+    public IEnumerable<AssetDTO> AllAssets;
+
+
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+    public bool isAdmin { get; set; } = false;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        AllAssets = await assetService.GetAssets();
+
+        var authState = await authenticationStateTask;
+        isAdmin = authState.User.IsInRole("assetManager");
+
+    }
+
+    public void DeleteAsset(int id)
+    {
+        var assetsList = AllAssets.ToList();
+        assetsList.Remove(assetsList.SingleOrDefault(a => a.Id == id));
+        AllAssets = assetsList;
+    }
+
+
+}

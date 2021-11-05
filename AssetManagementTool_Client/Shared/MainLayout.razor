@@ -1,0 +1,90 @@
+﻿@inherits LayoutComponentBase
+@inject NavigationManager navigationManager;
+
+<MudThemeProvider Theme="darkTheme"/>
+<MudDialogProvider FullWidth="true"
+                   MaxWidth="MaxWidth.Medium"
+                   DisableBackdropClick="true"
+                   NoHeader="false"
+                   Position="DialogPosition.Center" />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="0" Dense="true">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
+        <MudIconButton Icon="@Icons.Custom.Brands.GitHub" Color="Color.Inherit" Link="https://github.com/Palatino/" Target="_blank" Class="ml-" />
+        <MudSpacer />
+        <AccessControl />
+    </MudAppBar>
+    <MudDrawer @bind-Open="_drawerOpen" Elevation="1">
+        <MudDrawerHeader>
+            <img src="images/IFC_Icon.png" style="max-width:40px"/>
+        </MudDrawerHeader>
+        <NavMenu />
+    </MudDrawer>
+    <MudMainContent>
+        @Body
+    </MudMainContent>
+</MudLayout>
+
+@code 
+    { 
+
+
+            [CascadingParameter] protected Task<AuthenticationState> AuthStat { get; set; }
+
+            protected async override Task OnInitializedAsync()
+            {
+                base.OnInitialized();
+                var user = (await AuthStat).User;
+                if (!user.Identity.IsAuthenticated)
+                {
+                    navigationManager.NavigateTo($"/logIn");
+                }
+            }
+            bool _drawerOpen = true;
+
+            void DrawerToggle()
+            {
+                _drawerOpen = !_drawerOpen;
+            }
+
+            MudTheme darkTheme = new MudTheme()
+            {
+                Palette = new Palette()
+                {
+                    Tertiary = "#bfbfc1",
+                    Error = "#c35047",
+                    TableHover = "#303030",
+                    Primary = "#FFD700",
+                    Secondary = "#de2c2c",
+                    Black = "#27272f",
+                    Background = "#32333d",
+                    BackgroundGrey = "#27272f",
+                    Surface = "#373740",
+                    DrawerBackground = "#27272f",
+                    DrawerText = "rgba(255,255,255, 0.50)",
+                    DrawerIcon = "rgba(255,255,255, 0.50)",
+                    AppbarBackground = "#27272f",
+                    AppbarText = "rgba(255,255,255, 0.70)",
+                    TextPrimary = "rgba(255,255,255, 0.70)",
+                    TextSecondary = "rgba(255,255,255, 0.50)",
+                    ActionDefault = "#adadb1",
+                    ActionDisabled = "rgba(255,255,255, 0.26)",
+                    ActionDisabledBackground = "rgba(255,255,255, 0.12)",
+                    Divider = "rgba(255,255,255, 0.12)",
+                    DividerLight = "rgba(255,255,255, 0.06)",
+                    TableLines = "rgba(255,255,255, 0.12)",
+                    LinesDefault = "rgba(255,255,255, 0.12)",
+                    LinesInputs = "rgba(255,255,255, 0.3)",
+                    TextDisabled = "rgba(255,255,255, 0.2)"
+                },
+                LayoutProperties = new LayoutProperties()
+                {
+                    DrawerWidthLeft = "200px",
+                }
+    };
+
+ }
+
+

@@ -1,0 +1,157 @@
+﻿@inject IAssetAttachmentService attachmentService;
+@inject ISnackbar Snackbar
+@using System.IO
+<MudGrid>
+    <MudItem xs="12">
+        @if (filteredImages.Count > 0 && IsAdmin)
+        {
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="DeleteImage" Style="position:absolute; right:30px; bottom:50px"></MudIconButton>
+        }
+        <MudCarousel @ref="_carousel" ItemsSource="@filteredImages" Style="height:350px;" ShowDelimiters="false" ShowArrows="@(filteredImages.Count>0)" AutoCycle="false">
+            <ItemTemplate>
+                <div class="d-flex justify-center" style="height:100%;">
+                    <p style="position:absolute; left:30px">@context.DateAdded.ToString("dd/MM/yyyy")</p>
+                    <img src="@context.ImageBlobLink" style="width: auto; max-height: 350px" />
+                </div>
+            </ItemTemplate>
+        </MudCarousel>
+    </MudItem>
+    @if (IsAdmin)
+    {
+        <MudItem xs="12">
+            <EditForm Model="_newImage" OnValidSubmit="SubmitNewImage">
+                <MudGrid>
+                    <MudItem xs="12">
+                        <InputFile id="fileInput" OnChange="HandleImageUpload" multiple accept="image/png, image/jpeg, image/jpg" hidden></InputFile>
+                        <div class="d-flex justify-center">
+                            <MudFab HtmlTag="label" Class="mt-2"
+                                    Disabled="_uploadingImage"
+                                    IconColor="Color.Dark"
+                                    Color="Color.Primary"
+                                    Icon=@(_uploadingImage?"fas fa-spinner fa-spin": Icons.Filled.Image)
+                                    Label=@(_uploadingImage?"Uploading Image":"Add Image")
+                                    for="fileInput"
+                                    Style="width:50%; color:var(--mud-palette-dark)"></MudFab>
+                        </div>
+                    </MudItem>
+                </MudGrid>
+            </EditForm>
+        </MudItem>
+    }
+
+</MudGrid>
+
+
+@code {
+
+    [Parameter]
+    public AssetDTO Asset { get; set; }
+    [Parameter]
+    public string InitialSelection { get; set; }
+    [Parameter]
+    public bool IsAdmin { get; set; }
+
+    private MudCarousel<ImageAttachmentDTO> _carousel;
+    private int _maxSize = 2000000;
+    private NewImageAttachmentDTO _newImage = new NewImageAttachmentDTO();
+    private List<ImageAttachmentDTO> imagesList;
+    private List<ImageAttachmentDTO> filteredImages;
+    private string _selectedElementId { get; set; } = "";
+    private bool _uploadingImage = false;
+
+    protected override void OnInitialized()
+    {
+        _selectedElementId = InitialSelection;
+        //Cass asset.images to a list to allow adding and removing images as needed
+        Asset.Images = Asset.Images.ToList();
+        imagesList = Asset.Images as List<ImageAttachmentDTO>;
+        FilterImages();
+    }
+
+    public void SetSelectedElementId(string selectedElementId)
+    {
+        _selectedElementId = selectedElementId;
+        FilterImages();
+    }
+
+    public async Task HandleImageUpload(InputFileChangeEventArgs e)
+    {
+        _uploadingImage = true;
+        if (e.FileCount == 1)
+        {
+            await ProcessFile(e.File);
+        }
+        else
+        {
+            foreach(var file in e.GetMultipleFiles())
+            {
+                await ProcessFile(file);
+            }
+        }
+
+        _uploadingImage = false;
+    }
+
+    private async Task ProcessFile(IBrowserFile file)
+    {
+        FileInfo fileInfo = new FileInfo(file.Name);
+        _newImage.Format = fileInfo.Extension.ToLower();
+        List<string> validFormats = new List<string>() { ".jpg", ".png", ".jpeg" };
+
+        if (!validFormats.Contains(fileInfo.Extension.ToLower()))
+        {
+            Snackbar.Add("File not supported, supported formats: jpg, jpeg, png");
+            _newImage.Image = null;
+            return;
+        }
+        if (file.Size > _maxSize)
+        {
+            Snackbar.Add($"File size exceeds limit of {_maxSize / 1000000}MB");
+            _newImage.Image = null;
+
+        }
+        MemoryStream ms = new MemoryStream();
+        await file.OpenReadStream(maxAllowedSize: _maxSize).CopyToAsync(ms);
+        _newImage.Image = ms.ToArray();
+        await SubmitNewImage();
+    }
+
+    private async Task SubmitNewImage()
+    {
+        _newImage.AssetId = Asset.Id;
+        _newImage.ElementOwner = _selectedElementId;
+        ImageAttachmentDTO createdImage  = await attachmentService.CreateImageAttachment(_newImage);
+        if (createdImage.Id > 0)
+        {
+            Snackbar.Add("Image added successfully", Severity.Success);
+            imagesList.Add(createdImage);
+            _newImage.Image = null;
+            FilterImages();
+        }
+        else
+        {
+            Snackbar.Add("Error adding image", Severity.Error);
+        }
+    }
+
+    private void FilterImages()
+    {
+        filteredImages = imagesList.Where(i => i.ElementOwner == _selectedElementId).ToList();
+    }
+
+    private async Task DeleteImage()
+    {
+        if(filteredImages.Count == 0) { return; }
+        ImageAttachmentDTO selectedImage = filteredImages[_carousel.SelectedIndex];
+        bool  deleted = await attachmentService.DeleteImageAttachment(selectedImage.Id);
+        if (!deleted)
+        {
+            Snackbar.Add("Could not delete image", Severity.Error);
+            return;
+        }
+
+        imagesList.Remove(selectedImage);
+        FilterImages();
+        Snackbar.Add("Image deleted", Severity.Success);
+    }
+}

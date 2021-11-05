@@ -1,0 +1,38 @@
+﻿
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+
+@inject NavigationManager Navigation
+@inject SignOutSessionStateManager SignOutManager
+
+<AuthorizeView>
+    <Authorized>
+        <MudIcon Class="@(_isAdmin?"fas fa-user-cog mr-2":"fas fa-user mr-2")" Size="Size.Small"></MudIcon>
+        <MudText Class="mr-4">
+            Hello, @context.User.Identity.Name!
+        </MudText>
+        <MudButton Size="Size.Small" OnClick="BeginSignOut" Variant="Variant.Outlined" Color="Color.Primary">Log out</MudButton>
+    </Authorized>
+    <NotAuthorized>
+        <a href="authentication/login">Log in</a>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code{
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    private bool _isAdmin { get; set; }
+
+    private async Task BeginSignOut(MouseEventArgs args)
+    {
+        await SignOutManager.SetSignOutState();
+        Navigation.NavigateTo("authentication/logout");
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await authenticationStateTask;
+        _isAdmin = authState.User.IsInRole(Authorization.Roles.Admin);
+    }
+}

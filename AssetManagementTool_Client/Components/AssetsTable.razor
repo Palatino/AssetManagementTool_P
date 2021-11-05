@@ -1,0 +1,102 @@
+﻿@inject IAssetService assetService;
+@inject IDialogService dialogService
+@inject ISnackbar Snackbar
+
+<MudTable Items="@assetsList" Dense="true" Hover="true" Bordered="true" Striped="true" Filter="new Func<AssetDTO,bool>(FilterFunc1)">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Assets</MudText>
+        <MudSpacer />
+        <MudTextField @bind-Value="searchString1" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Id</MudTh>
+        <MudTh>Name</MudTh>
+        <MudTh>Link</MudTh>
+        @if (_isAdmin)
+        {
+            <MudTh>Delete</MudTh>
+        }
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Id">@context.Id</MudTd>
+        <MudTd DataLabel="Name">@context.Name</MudTd>
+        <MudTd DataLabel="Link">
+            <MudButton Link=@($"/assets/{context.Id}")
+                       Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       Style="color: #424242ff">
+                View Asset
+            </MudButton>
+        </MudTd>
+        @if (_isAdmin)
+        {
+            <MudTd>
+                <MudButton OnClick="()=>OnDelete(context.Id)"
+                           Variant="Variant.Filled"
+                           Color="Color.Error">
+                    Delete
+                </MudButton>
+            </MudTd>
+        }
+
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager />
+    </PagerContent>
+</MudTable>
+
+@code {
+    [Parameter]
+    public IEnumerable<AssetDTO> Assets { get; set; }
+    [Parameter]
+    public EventCallback<int> OnAssetDeletion { get; set; }
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    private bool _isAdmin;
+    private List<AssetDTO> assetsList { get; set; }
+    private string searchString1 = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await authenticationStateTask;
+        _isAdmin = authState.User.IsInRole(Authorization.Roles.Admin);
+        assetsList = Assets.ToList();
+    }
+
+    private bool FilterFunc1(AssetDTO asset) => FilterFunc(asset, searchString1);
+    private bool FilterFunc(AssetDTO asset, string searchString)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (asset.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        return false;
+    }
+
+    private async Task OnDelete(int id)
+    {
+        var parameters = new DialogParameters();
+        parameters.Add("ContentText", "Are you sure you want to delete this asset? This operation cannot be undone");
+
+        var dialog = dialogService.Show<ConfirmnDeletionDialog>("Confirm Deletion", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Cancelled)
+        {
+            bool deleted = await assetService.DeleteAsset(id);
+            if (deleted)
+            {
+                Snackbar.Add("Asset deleted successfullt", Severity.Success);
+                assetsList.Remove(assetsList.Single(a => a.Id == id));
+                await OnAssetDeletion.InvokeAsync(id);
+            }
+            else
+            {
+                Snackbar.Add("Could not delete asset", Severity.Error);
+            }
+        }
+
+
+    }
+}

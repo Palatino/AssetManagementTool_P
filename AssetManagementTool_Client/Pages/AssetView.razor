@@ -1,0 +1,36 @@
+﻿@page "/assets/{Id:int}"
+@layout MainLayout
+@inject IAssetService assetService;
+@attribute [Authorize]
+
+@if (assetDTO is null)
+{
+    <LoadingComponent></LoadingComponent>
+}
+else
+{
+    <MudText Typo="Typo.h3" Align="Align.Center" Class="my-2">@assetDTO.Name</MudText>
+    <IFCCanvas Asset="assetDTO" SetSelectedItem="SetSelectedElementId" />
+    <AttachmentBrowser Asset="assetDTO" @ref="attachmentBrowser" />
+}
+
+
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    private AttachmentBrowser attachmentBrowser { get; set; }
+    private string selectedElementId = "";
+    private AssetDTO assetDTO;
+
+    protected override async Task OnInitializedAsync()
+    {
+        assetDTO = await assetService.GetAsset(Id);
+
+    }
+
+    public void SetSelectedElementId(string elementId)
+    {
+        attachmentBrowser.SetSelectionId(elementId);
+    }
+}
